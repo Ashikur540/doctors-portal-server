@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const { MongoClient } = require('mongodb');
+const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config();
 const port = process.env.port || 5000
@@ -31,7 +32,7 @@ DBConnect();
 
 const appointmentsCollection = client.db('doctorsPortal').collection('appointmentData')
 const bookingsCollection = client.db("doctorsPortal").collection('bookingsData');
-
+const usersCollection = client.db('doctorsPortal').collection('usres')
 
 
 // naming convention
@@ -43,6 +44,26 @@ const bookingsCollection = client.db("doctorsPortal").collection('bookingsData')
     * app.delete('/bookings/:id)
 
 */
+
+// verify jwt
+const verifyJWT = (req, res, next) => {
+    console.log("token", req.headers.authorization);
+    const authheader = req.headers.authorization;
+    if (!authheader) {
+        return res.status(401).send('unauthorised access')
+    }
+    const token = authheader.split(' ')[1]
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+        if (err) {
+            return res.status(403).send({
+                message: "unauthorised access",
+
+            })
+        }
+        req.decoded = decoded;
+        next();
+    })
+}
 
 
 
@@ -72,25 +93,83 @@ app.get("/appointmentOptions", async (req, res) => {
     }
 })
 
-// add bookings to db
-app.post('/bookings', async (req, res) => {
-    const bookingInfo = req.body;
-    const query = {
-        selectedDate: bookingInfo.selectedDate,
-        treatmentName: bookingInfo.treatmentName,
-        email: bookingInfo.email
+
+// email based appointments booked
+app.get("/bookings", verifyJWT, async (req, res) => {
+    const { email } = req.query;
+    const decodedEmail = req.decoded.email;
+    console.log(decodedEmail);
+    if (email !== decodedEmail) {
+        return res.status(403).send({
+            message: `forbidden access`
+        })
     }
-    const alreadyBooked = await bookingsCollection.find(query).toArray();
-    if (alreadyBooked.length) {
-        const message = `You already have booking on ${bookingInfo.selectedDate} `
-        return res.send({ acknowledged: false, message })
-    }
-    const result = await bookingsCollection.insertOne(bookingInfo);
-    res.send(result)
+    console.log(req.headers.authorization);
+    const query = { email: email };
+    const appointments = await bookingsCollection.find(query).toArray();
+    res.send(appointments)
 })
 
 
 
+// add bookings to db
+app.post('/bookings', async (req, res) => {
+    try {
+        const bookingInfo = req.body;
+        const query = {
+            selectedDate: bookingInfo.selectedDate,
+            treatmentName: bookingInfo.treatmentName,
+            email: bookingInfo.email
+        }
+        const alreadyBooked = await bookingsCollection.find(query).toArray();
+        if (alreadyBooked.length) {
+            const message = `You already have booking on ${bookingInfo.selectedDate} `
+            return res.send({ acknowledged: false, message })
+        }
+        const result = await bookingsCollection.insertOne(bookingInfo);
+        res.send(result)
+    } catch (error) {
+        console.log(error.message);
+    }
+})
+
+
+// add users to db
+app.post('/users', async (req, res) => {
+    try {
+        const user = req.body;
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
+    } catch (error) {
+        console.log(error);
+    }
+})
+
+app.get('/jwt', async (req, res) => {
+    try {
+        const { email } = req.query;
+        const query = {
+            email: email
+        }
+        const result = await usersCollection.findOne(query);
+        console.log(result);
+        if (result) {
+            const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1d" });
+            return res.send({
+                token: token
+            })
+        }
+        else {
+            return res.status(401).send({
+                token: ""
+            })
+        }
+
+    }
+    catch (error) {
+        console.log(error.message);
+    }
+})
 
 
 
