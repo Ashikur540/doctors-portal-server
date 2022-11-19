@@ -182,7 +182,19 @@ app.get('/jwt', async (req, res) => {
 
 // make admin role by patch
 
-app.put("/users/admin/:id", async (req, res) => {
+app.put("/users/admin/:id", verifyJWT, async (req, res) => {
+    const decodedEmail = req.decoded.email;
+    const query = { email: decodedEmail };
+    const actionRequesteduser = await usersCollection.findOne(query);
+
+    // mane je admin banaite chasse jdi asolei nije admin kina seta check korlam
+    if (actionRequesteduser?.role !== 'admin') {
+        return res.status(403).send({
+            message: 'forbidden access! Invalid action request'
+        })
+    }
+
+
 
     const { id } = req.params;
     const filter = { _id: ObjectId(id) }
