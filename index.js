@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient } = require('mongodb');
+const { MongoClient, ObjectId } = require('mongodb');
 const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config();
@@ -92,7 +92,7 @@ app.get("/appointmentOptions", async (req, res) => {
         console.log(error);
     }
 })
-
+// app.
 
 // email based appointments booked
 app.get("/bookings", verifyJWT, async (req, res) => {
@@ -110,6 +110,12 @@ app.get("/bookings", verifyJWT, async (req, res) => {
     res.send(appointments)
 })
 
+// get all users
+app.get("/users", async (req, res) => {
+
+    const result = await usersCollection.find({}).toArray();
+    res.send(result);
+})
 
 
 // add bookings to db
@@ -174,7 +180,22 @@ app.get('/jwt', async (req, res) => {
 
 
 
+// make admin role by patch
 
+app.put("/users/admin/:id", async (req, res) => {
+
+    const { id } = req.params;
+    const filter = { _id: ObjectId(id) }
+    const options = { upsert: true }
+    const updatedDoc = {
+        $set: {
+            role: "admin"
+        }
+    }
+
+    const result = await usersCollection.updateOne(filter, updatedDoc, options);
+    res.send(result)
+})
 
 
 
