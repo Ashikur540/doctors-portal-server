@@ -47,7 +47,7 @@ const usersCollection = client.db('doctorsPortal').collection('usres')
 
 // verify jwt
 const verifyJWT = (req, res, next) => {
-    console.log("token", req.headers.authorization);
+    // console.log("token", req.headers.authorization);
     const authheader = req.headers.authorization;
     if (!authheader) {
         return res.status(401).send('unauthorised access')
@@ -158,7 +158,7 @@ app.get('/jwt', async (req, res) => {
             email: email
         }
         const result = await usersCollection.findOne(query);
-        console.log(result);
+        // console.log(result);
         if (result) {
             const token = jwt.sign({ email }, process.env.ACCESS_TOKEN_SECRET, { expiresIn: "1d" });
             return res.send({
@@ -176,6 +176,23 @@ app.get('/jwt', async (req, res) => {
         console.log(error.message);
     }
 })
+
+
+// check an admin is actually an admin or not
+
+app.get('/users/admin/:email', async (req, res) => {
+    const { email } = req.params;
+    console.log(email)
+    const user = await usersCollection.findOne({ email: email });
+    console.log(user);
+    res.send({
+        isAdmin: user?.role === 'admin'
+    })
+})
+
+
+
+
 
 
 
