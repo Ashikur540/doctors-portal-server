@@ -33,6 +33,7 @@ DBConnect();
 const appointmentsCollection = client.db('doctorsPortal').collection('appointmentData')
 const bookingsCollection = client.db("doctorsPortal").collection('bookingsData');
 const usersCollection = client.db('doctorsPortal').collection('usres')
+const doctorsCollection = client.db('doctorsPortal').collection('doctors')
 
 
 // naming convention
@@ -60,6 +61,8 @@ const verifyJWT = (req, res, next) => {
 
             })
         }
+
+        // request object e ekta property add korlam and value set korlam
         req.decoded = decoded;
         next();
     })
@@ -140,17 +143,6 @@ app.post('/bookings', async (req, res) => {
 })
 
 
-// add users to db
-app.post('/users', async (req, res) => {
-    try {
-        const user = req.body;
-        const result = await usersCollection.insertOne(user);
-        res.send(result);
-    } catch (error) {
-        console.log(error);
-    }
-})
-
 app.get('/jwt', async (req, res) => {
     try {
         const { email } = req.query;
@@ -178,29 +170,67 @@ app.get('/jwt', async (req, res) => {
 })
 
 
+
+
+
 // check an admin is actually an admin or not
 
 app.get('/users/admin/:email', async (req, res) => {
     const { email } = req.params;
     console.log(email)
     const user = await usersCollection.findOne({ email: email });
-    console.log(user);
+    // console.log(user);
+    console.log(user?.role === 'admin')
     res.send({
         isAdmin: user?.role === 'admin'
     })
 })
 
+// 
+
+app.get('/appointmentSpeciality', async (req, res) => {
+    const query = {};
+    const result = await appointmentsCollection.find(query).project({
+        name: 1
+    }).toArray();
+    res.send(result)
+})
+
+
+// get all doctors
+app.get('/doctors', async (req, res) => {
+    const result = await doctorsCollection.find({}).toArray();
+    res.send(result)
+})
+
+
+// add users to db
+app.post('/users', async (req, res) => {
+    try {
+        const user = req.body;
+        const result = await usersCollection.insertOne(user);
+        res.send(result);
+    } catch (error) {
+        console.log(error);
+    }
+})
+
+
+// add doctors to db
+app.post("/doctors", async (req, res) => {
+    const doctorData = req.body;
+    const result = await doctorsCollection.insertOne(doctorData);
+    res.send(result);
+})
 
 
 
 
-
-
-
-// make admin role by patch
+// make admin role by put
 
 app.put("/users/admin/:id", verifyJWT, async (req, res) => {
     const decodedEmail = req.decoded.email;
+
     const query = { email: decodedEmail };
     const actionRequesteduser = await usersCollection.findOne(query);
 
