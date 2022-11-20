@@ -258,7 +258,13 @@ app.put("/users/admin/:id", verifyJWT, async (req, res) => {
 
 
 
-
+// delete doctor
+app.delete('/doctors/:id', async (req, res) => {
+    const { id } = req.params;
+    console.log(id);
+    const result = await doctorsCollection.deleteOne({ _id: ObjectId(id) });
+    res.send(result)
+})
 
 
 
