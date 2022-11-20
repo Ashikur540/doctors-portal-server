@@ -45,10 +45,10 @@ const doctorsCollection = client.db('doctorsPortal').collection('doctors')
     * app.delete('/bookings/:id)
 
 */
-
+/* ################MY MiddleWares  ########################*/
 // verify jwt
 const verifyJWT = (req, res, next) => {
-    // console.log("token", req.headers.authorization);
+    console.log("token", req.headers.authorization);
     const authheader = req.headers.authorization;
     if (!authheader) {
         return res.status(401).send('unauthorised access')
@@ -69,6 +69,19 @@ const verifyJWT = (req, res, next) => {
 }
 
 
+// make sure to verify Admin after jwt verification
+const verifyAdmin = (req, res, next) => {
+    console.log("inside verify admin++++", req.decoded?.email);
+    next();
+}
+
+
+/* ################MY MiddleWares ENDS  ########################*/
+
+
+
+
+/* ################MY get Operations starts  ########################*/
 
 app.get("/appointmentOptions", async (req, res) => {
     try {
@@ -101,13 +114,13 @@ app.get("/appointmentOptions", async (req, res) => {
 app.get("/bookings", verifyJWT, async (req, res) => {
     const { email } = req.query;
     const decodedEmail = req.decoded.email;
-    console.log(decodedEmail);
+    // console.log(decodedEmail);
     if (email !== decodedEmail) {
         return res.status(403).send({
             message: `forbidden access`
         })
     }
-    console.log(req.headers.authorization);
+    // console.log(req.headers.authorization);
     const query = { email: email };
     const appointments = await bookingsCollection.find(query).toArray();
     res.send(appointments)
@@ -121,28 +134,7 @@ app.get("/users", async (req, res) => {
 })
 
 
-// add bookings to db
-app.post('/bookings', async (req, res) => {
-    try {
-        const bookingInfo = req.body;
-        const query = {
-            selectedDate: bookingInfo.selectedDate,
-            treatmentName: bookingInfo.treatmentName,
-            email: bookingInfo.email
-        }
-        const alreadyBooked = await bookingsCollection.find(query).toArray();
-        if (alreadyBooked.length) {
-            const message = `You already have booking on ${bookingInfo.selectedDate} `
-            return res.send({ acknowledged: false, message })
-        }
-        const result = await bookingsCollection.insertOne(bookingInfo);
-        res.send(result)
-    } catch (error) {
-        console.log(error.message);
-    }
-})
-
-
+// jwt implementation 
 app.get('/jwt', async (req, res) => {
     try {
         const { email } = req.query;
@@ -169,15 +161,11 @@ app.get('/jwt', async (req, res) => {
     }
 })
 
-
-
-
-
 // check an admin is actually an admin or not
 
 app.get('/users/admin/:email', async (req, res) => {
     const { email } = req.params;
-    console.log(email)
+    // console.log(email)
     const user = await usersCollection.findOne({ email: email });
     // console.log(user);
     console.log(user?.role === 'admin')
@@ -186,7 +174,10 @@ app.get('/users/admin/:email', async (req, res) => {
     })
 })
 
-// 
+
+
+
+//filer a field from the schema
 
 app.get('/appointmentSpeciality', async (req, res) => {
     const query = {};
@@ -196,11 +187,51 @@ app.get('/appointmentSpeciality', async (req, res) => {
     res.send(result)
 })
 
-
 // get all doctors
-app.get('/doctors', async (req, res) => {
+app.get('/doctors', verifyJWT, verifyAdmin, async (req, res) => {
+    const decodedEmail = req.decoded.email;
+
+    const query = { email: decodedEmail };
+    // console.log("inside api", req.decoded.email)
     const result = await doctorsCollection.find({}).toArray();
     res.send(result)
+})
+
+
+/* ################MY get Operations ends  ########################*/
+
+/* 
+\
+\
+\
+\
+\
+\
+\
+
+*/
+
+/* ################MY post Operations starts  ########################*/
+
+// add bookings to db
+app.post('/bookings', async (req, res) => {
+    try {
+        const bookingInfo = req.body;
+        const query = {
+            selectedDate: bookingInfo.selectedDate,
+            treatmentName: bookingInfo.treatmentName,
+            email: bookingInfo.email
+        }
+        const alreadyBooked = await bookingsCollection.find(query).toArray();
+        if (alreadyBooked.length) {
+            const message = `You already have booking on ${bookingInfo.selectedDate} `
+            return res.send({ acknowledged: false, message })
+        }
+        const result = await bookingsCollection.insertOne(bookingInfo);
+        res.send(result)
+    } catch (error) {
+        console.log(error.message);
+    }
 })
 
 
@@ -223,8 +254,20 @@ app.post("/doctors", async (req, res) => {
     res.send(result);
 })
 
+/* ################MY post Operations ends  ########################*/
 
+/* 
+\
+\
+\
+\
+\
+\
+\
 
+*/
+
+/* ################MY put Operations starts  ########################*/
 
 // make admin role by put
 
@@ -257,7 +300,20 @@ app.put("/users/admin/:id", verifyJWT, async (req, res) => {
 })
 
 
+/* ################MY put Operations ends  ########################*/
 
+/* 
+\
+\
+\
+\
+\
+\
+\
+
+*/
+
+/* ################MY delete Operations starts  ########################*/
 // delete doctor
 app.delete('/doctors/:id', async (req, res) => {
     const { id } = req.params;
@@ -266,7 +322,20 @@ app.delete('/doctors/:id', async (req, res) => {
     res.send(result)
 })
 
+/* ################MY delete Operations ends  ########################*/
 
+/* 
+\
+\
+\
+\
+\
+\
+\
+
+*/
+
+/* ################MY patch Operations starts  ########################*/
 
 
 
