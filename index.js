@@ -1,3 +1,5 @@
+
+
 const express = require('express');
 const cors = require('cors');
 const { MongoClient, ObjectId } = require('mongodb');
@@ -5,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config();
 const port = process.env.port || 5000
+
 
 // middleware
 app.use(cors());
@@ -48,7 +51,7 @@ const doctorsCollection = client.db('doctorsPortal').collection('doctors')
 /* ################MY MiddleWares  ########################*/
 // verify jwt
 const verifyJWT = (req, res, next) => {
-    console.log("token", req.headers.authorization);
+    // console.log("token", req.headers.authorization);
     const authheader = req.headers.authorization;
     if (!authheader) {
         return res.status(401).send('unauthorised access')
@@ -70,8 +73,16 @@ const verifyJWT = (req, res, next) => {
 
 
 // make sure to verify Admin after jwt verification
-const verifyAdmin = (req, res, next) => {
-    console.log("inside verify admin++++", req.decoded?.email);
+// we are writing this middleware to check if the requested user is really an admin or not
+const verifyAdmin = async (req, res, next) => {
+    // console.log("inside verify admin++++", req.decoded?.email);
+    const decodedEmail = req.decoded?.email;
+    const query = { email: decodedEmail };
+    const user = await usersCollection.findOne(query);
+
+    if (user?.role !== 'admin') {
+        return res.status(403).send({ message: 'forbidden access' })
+    }
     next();
 }
 
@@ -189,9 +200,7 @@ app.get('/appointmentSpeciality', async (req, res) => {
 
 // get all doctors
 app.get('/doctors', verifyJWT, verifyAdmin, async (req, res) => {
-    const decodedEmail = req.decoded.email;
 
-    const query = { email: decodedEmail };
     // console.log("inside api", req.decoded.email)
     const result = await doctorsCollection.find({}).toArray();
     res.send(result)
@@ -248,7 +257,7 @@ app.post('/users', async (req, res) => {
 
 
 // add doctors to db
-app.post("/doctors", async (req, res) => {
+app.post("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
     const doctorData = req.body;
     const result = await doctorsCollection.insertOne(doctorData);
     res.send(result);
@@ -271,18 +280,8 @@ app.post("/doctors", async (req, res) => {
 
 // make admin role by put
 
-app.put("/users/admin/:id", verifyJWT, async (req, res) => {
-    const decodedEmail = req.decoded.email;
+app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
 
-    const query = { email: decodedEmail };
-    const actionRequesteduser = await usersCollection.findOne(query);
-
-    // mane je admin banaite chasse jdi asolei nije admin kina seta check korlam
-    if (actionRequesteduser?.role !== 'admin') {
-        return res.status(403).send({
-            message: 'forbidden access! Invalid action request'
-        })
-    }
 
 
 
@@ -315,7 +314,7 @@ app.put("/users/admin/:id", verifyJWT, async (req, res) => {
 
 /* ################MY delete Operations starts  ########################*/
 // delete doctor
-app.delete('/doctors/:id', async (req, res) => {
+app.delete('/doctors/:id', verifyJWT, verifyAdmin, async (req, res) => {
     const { id } = req.params;
     console.log(id);
     const result = await doctorsCollection.deleteOne({ _id: ObjectId(id) });
