@@ -7,7 +7,7 @@ const jwt = require('jsonwebtoken');
 const app = express();
 require('dotenv').config();
 const port = process.env.port || 5000
-
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
 
 // middleware
 app.use(cors());
@@ -37,6 +37,7 @@ const appointmentsCollection = client.db('doctorsPortal').collection('appointmen
 const bookingsCollection = client.db("doctorsPortal").collection('bookingsData');
 const usersCollection = client.db('doctorsPortal').collection('usres')
 const doctorsCollection = client.db('doctorsPortal').collection('doctors')
+const paymentsCollection = client.db('doctorsPortal').collection('payments')
 
 
 // naming convention
@@ -207,6 +208,12 @@ app.get('/doctors', verifyJWT, verifyAdmin, async (req, res) => {
 })
 
 
+app.get('/bookings/:id', async (req, res) => {
+    const id = req.params.id;
+    const result = await bookingsCollection.findOne({ _id: ObjectId(id) })
+    res.send(result)
+})
+
 /* ################MY get Operations ends  ########################*/
 
 /* 
@@ -263,6 +270,53 @@ app.post("/doctors", verifyJWT, verifyAdmin, async (req, res) => {
     res.send(result);
 })
 
+
+// stripe post method
+app.post('/create-payment-intent', async (req, res) => {
+    const bookingData = req.body;
+    const price = bookingData.price;
+    // convert to cent or poisa
+    const amount = price * 1000
+
+    const paymentIntent = await stripe.paymentIntents.create({
+        currency: "usd",
+        amount: amount,
+        "payment_method_types": [
+            "card"
+        ],
+    });
+    res.send({
+        clientSecret: paymentIntent.client_secret,
+    });
+})
+
+
+// store payments
+
+app.post('/payments', async (req, res) => {
+    const payment = req.body;
+    // console.log(req.body);
+    const result = await paymentsCollection.insertOne(payment);
+    // console.log(result);
+    const id = payment.bookingID;
+    const filter = { _id: ObjectId(id) };
+    const updatedDoc = {
+        $set: {
+            paid: true,
+            transactionID: payment.transactionID,
+        }
+    }
+    const updatedresult = await bookingsCollection.updateOne(filter, updatedDoc)
+    res.send(result);
+})
+
+
+
+
+
+
+
+
 /* ################MY post Operations ends  ########################*/
 
 /* 
@@ -298,6 +352,18 @@ app.put("/users/admin/:id", verifyJWT, verifyAdmin, async (req, res) => {
     res.send(result)
 })
 
+
+// app.get('/addprice', async (req, res) => {
+//     const filter = {};
+//     const options = { upsert: true };
+//     const updatedDoc = {
+//         $set: {
+//             price: 99
+//         }
+//     }
+//     const result = await appointmentsCollection.updateMany(filter, updatedDoc, options);
+//     res.send(result)
+// })
 
 /* ################MY put Operations ends  ########################*/
 
